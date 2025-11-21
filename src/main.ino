@@ -3,14 +3,30 @@
 #include "config.h"
 #include "sw.h"
 
-enum STEERING_SW read_sw();
 #include "AudioTools.h"
 #include "BluetoothA2DPSink.h"
+#include <Preferences.h>
 
 I2SStream i2s;
 BluetoothA2DPSink a2dp_sink(i2s);
+Preferences preferences;
+int32_t now_volume = 64;
+
+void volume_changed(int volume) {
+    Serial.printf("Volume changed to: %d\n", volume);
+    now_volume = volume;
+    int current_saved = preferences.getInt(BLUETOOTH_PREF_KEY_VOL, -1);
+    if (current_saved != now_volume) {
+        preferences.putInt(BLUETOOTH_PREF_KEY_VOL, volume);
+        Serial.println("Volume saved to NVS");
+    }
+}
 
 void setup() {
+    // NVS Setup
+    preferences.begin(BLUETOOTH_PREF_NAMESPACE, false);
+    now_volume = preferences.getInt(BLUETOOTH_PREF_KEY_VOL, BLUETOOTH_DEFAULT_VOLUME);
+
     // I2S Setup
     auto cfg = i2s.defaultConfig();
     cfg.pin_bck = BCK_PIN;
@@ -23,6 +39,8 @@ void setup() {
     analogSetAttenuation(ADC_11db);
 
     // Audio Setup
+    a2dp_sink.set_on_volumechange(volume_changed);
+    a2dp_sink.set_volume(now_volume);
     a2dp_sink.set_auto_reconnect(true, 1000);
     a2dp_sink.start("D-CAR-AUDIO");
     while(!a2dp_sink.is_connected()) { 
@@ -47,16 +65,18 @@ void loop() {
     Serial.println(sw);
     switch (sw) {
         case VOL_UP:
-            a2dp_sink.volume_up();
+            now_volume += BLUETOOTH_VOL_UP_SIZE;
+            a2dp_sink.set_volume(now_volume);
             break;
         case VOL_DOWN:
-            a2dp_sink.volume_down();
+            now_volume -= BLUETOOTH_VOL_UP_SIZE;
+            a2dp_sink.set_volume(now_volume);
             break;
         case NEXT:
-            a2dp_sink.next(); // OK
+            a2dp_sink.next();
             break;
         case PREV:
-            a2dp_sink.previous(); // OK
+            a2dp_sink.previous();
             break;
         case TEST1:
             a2dp_sink.next();
