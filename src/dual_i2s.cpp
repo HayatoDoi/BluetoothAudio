@@ -7,6 +7,7 @@
  * Copyright (C) 1997- Hayato Doi. All rights reserved.
  *******************************************************/
 #include "config.hpp"
+#include "dsp.hpp"
 
 #include "driver/i2s.h"
 #include "freertos/ringbuf.h"
@@ -23,7 +24,7 @@ void dual_i2s_setup()
     /* 共通設定 */
     i2s_config_t i2s_config = {
         .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_TX),
-        .sample_rate = 44100,
+        .sample_rate = SAMPLE_RATE,
         .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
         .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,
         .communication_format = I2S_COMM_FORMAT_STAND_I2S,
@@ -72,65 +73,90 @@ void dual_i2s_setup()
         NULL,            // ハンドル
         1                // Core 1
     );
+
+    /* DSP機能のセットアップ */
+    dsp_setup();
 }
 
 /* データ書き込みタスク */
 static void i2s_output_task(void *param)
 {
     uint32_t item_size;
-    uint32_t bytes_written;
 
     while (true)
     {
+        uint8_t *data = NULL;
+        uint8_t *front_buff = NULL;
+        uint8_t *rear_buff = NULL;
+        size_t front_written = 0;
+        size_t rear_written = 0;
+
         /* リングバッファからデータを取り出す*/
-        uint8_t *data = (uint8_t *)xRingbufferReceive(buf_handle, &item_size, portMAX_DELAY);
+        data = (uint8_t *)xRingbufferReceive(buf_handle, &item_size, portMAX_DELAY);
         if (data == NULL)
         {
-            continue;
+            goto END;
         }
 
-        /* 信号処理 (DSP: Digital Sound Processing)を実行*/
-        // int16_t *samples = (int16_t *)data;
-        // int count = item_size / 2;
-        // for (int i = 0; i < count; i++)
-        // {
-        //     // samples[i] = samples[i] / 2; // 例: DSP処理
-        // }
+        /* 編集可能な領域に値をコピー */
+        front_buff = (uint8_t *)malloc(sizeof(uint8_t) * item_size);
+        if (front_buff == NULL)
+        {
+            Serial.println("Failed to allocate memory for buffers");
+            goto END;
+        }
+        memcpy(front_buff, data, item_size);
+        rear_buff = (uint8_t *)malloc(sizeof(uint8_t) * item_size);
+        if (rear_buff == NULL)
+        {
+            Serial.println("Failed to allocate memory for buffers");
+            goto END;
+        }
+        memcpy(rear_buff, data, item_size);
+
+        /* 信号処理 (DSP: Digital Signal Processing)を実行 */
+        dsp_process((int16_t *)front_buff, (int16_t *)rear_buff, item_size / 2); // 16bitステレオなので2で割る
 
         /* ノンブロッキングで2つのI2Sにデータを書き込み */
-        size_t written_0 = 0;
-        size_t written_1 = 0;
-        while (written_0 < item_size || written_1 < item_size)
+        while (front_written < item_size || rear_written < item_size)
         {
             size_t written_chunk = 0;
-            if (written_0 < item_size)
+            if (front_written < item_size)
             {
                 i2s_write(I2S_NUM_0,
-                          data + written_0,
-                          item_size - written_0,
+                          front_buff + front_written,
+                          item_size - front_written,
                           &written_chunk,
                           0); /* 書き込めるものだけ書き込む */
                 if (written_chunk > 0)
                 {
-                    written_0 += written_chunk;
+                    front_written += written_chunk;
                 }
             }
-            if (written_1 < item_size)
+            if (rear_written < item_size)
             {
                 i2s_write(I2S_NUM_1,
-                          data + written_1,
-                          item_size - written_1,
+                          rear_buff + rear_written,
+                          item_size - rear_written,
                           &written_chunk,
                           0); /* 書き込めるものだけ書き込む */
                 if (written_chunk > 0)
                 {
-                    written_1 += written_chunk;
+                    rear_written += written_chunk;
                 }
             }
         }
 
-        /* 読み終わったアイテムをバッファに返却 */
+    END:
         vRingbufferReturnItem(buf_handle, (void *)data);
+        if (front_buff)
+        {
+            free(front_buff);
+        }
+        if (rear_buff)
+        {
+            free(rear_buff);
+        }
     }
 }
 

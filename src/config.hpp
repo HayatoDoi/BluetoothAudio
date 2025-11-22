@@ -23,6 +23,8 @@
 #define BLUETOOTH_PREF_KEY_VOL "volume"
 #define BLUETOOTH_VOL_UP_SIZE 10
 
+#define SAMPLE_RATE 44100
+
 /* ステアリングスイッチ関連 */
 #define SW_PIN 34
 #define V_IN 3.3      /* 入力電圧 */
