@@ -1,3 +1,11 @@
+/*******************************************************
+ *
+ * config.hpp
+ *
+ * 各プログラムの設定値を定義したヘッダファイル。
+ *
+ * Copyright (C) 1997- Hayato Doi. All rights reserved.
+ *******************************************************/
 #pragma once
 
 /* I2S出力関連 */
@@ -9,7 +17,8 @@
 #define I2S1_DIN_PIN 4
 
 /* Bluetoothの設定 */
-#define BLUETOOTH_DEFAULT_VOLUME 64 /* 初回起動時の音量 */
+#define BLUETOOTH_DEVICE_NAME "D-CAR-AUDIO" /* Bluetoothデバイス名 */
+#define BLUETOOTH_DEFAULT_VOLUME 64         /* 初回起動時の音量 */
 #define BLUETOOTH_PREF_NAMESPACE "bt-audio"
 #define BLUETOOTH_PREF_KEY_VOL "volume"
 #define BLUETOOTH_VOL_UP_SIZE 10

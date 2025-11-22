@@ -1,75 +1,63 @@
-#include "config.h"
-#include "sw.h"
-#include "bt_audio.h"
+/*******************************************************
+ *
+ * main.ino
+ *
+ * メインプログラム。各機能を結合し、動作させる。
+ *
+ * Copyright (C) 1997- Hayato Doi. All rights reserved.
+ *******************************************************/
+#include "config.hpp"
+#include "sw.hpp"
+#include "bt_audio.hpp"
 
 #include <Arduino.h>
 
-// 関数ポインタの型定義（引数なし、戻り値なしの関数）
-typedef void (*ActionFunc)();
-
-// キーと実行関数のペアを定義する構造体
-struct KeyAction
+/* スイッチが押されたときの動作 */
+static const struct
 {
     STEERING_SW key;
-    ActionFunc action;
-};
-
-// アクションマップの定義
-// ここに追記するだけで機能割り当てが可能になります
-const KeyAction ACTION_MAP[] = {
+    void (*action)();
+} ACTION_TABLE[] = {
     {VOL_UP, bt_volume_up},
     {VOL_DOWN, bt_volume_down},
     {NEXT, bt_next},
     {PREV, bt_previous},
-    {TEST1, bt_next},    // TEST1もNEXTと同じ動き
-    {TEST2, bt_previous} // TEST2もPREVと同じ動き
+    {TEST1, bt_next},    // for debug.
+    {TEST2, bt_previous} // for debug.
 };
+static const int32_t ACTION_TABLE_LEN =
+    sizeof(ACTION_TABLE) / sizeof(ACTION_TABLE[0]);
 
+/* 各機能のセットアップ */
 void setup()
 {
+    /* シリアルポートの初期化 */
     Serial.begin(115200);
 
-    // アナログ読み取りのセットアップ
-    analogReadResolution(12);
-    analogSetAttenuation(ADC_11db);
+    /* スイッチ機能のセットアップ */
+    sw_setup();
 
-    // Bluetooth機能のセットアップ
+    /* Bluetooth機能のセットアップ */
     bt_setup();
 
     Serial.println("System initialized.");
 }
 
+/* メインループ */
 void loop()
 {
     delay(10);
 
-    static enum STEERING_SW _sw = NONE;
-    enum STEERING_SW sw = read_sw();
-
-    // 状態が変わっていない、またはNONEの場合は何もしない
-    if (sw == _sw || sw == NONE || sw == UNKNOWN)
-    {
-        _sw = sw; // NONEの場合も状態更新は必要（離したことを検知するため）
-        return;
-    }
-
+    /* 押されたスイッチに合わせて処理を実行する */
+    enum STEERING_SW sw = sw_read();
     Serial.print("sw = ");
     Serial.println(sw);
-
-    // アクションマップを検索して対応する関数を実行
-    size_t map_size = sizeof(ACTION_MAP) / sizeof(KeyAction);
-    for (size_t i = 0; i < map_size; i++)
+    for (size_t i = 0; i < ACTION_TABLE_LEN; i++)
     {
-        if (ACTION_MAP[i].key == sw)
+        if (ACTION_TABLE[i].key == sw)
         {
-            // 関数が登録されていれば実行
-            if (ACTION_MAP[i].action != nullptr)
-            {
-                ACTION_MAP[i].action();
-            }
-            break; // 見つかったらループを抜ける
+            ACTION_TABLE[i].action();
+            break;
         }
     }
-
-    _sw = sw;
 }
