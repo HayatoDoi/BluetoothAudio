@@ -50,14 +50,17 @@ void loop()
 
     /* 押されたスイッチに合わせて処理を実行する */
     enum STEERING_SW sw = sw_read();
-    Serial.print("sw = ");
-    Serial.println(sw);
-    for (size_t i = 0; i < ACTION_TABLE_LEN; i++)
+    if (sw != NONE)
     {
-        if (ACTION_TABLE[i].key == sw)
+        Serial.print("sw = ");
+        Serial.println(sw);
+        for (size_t i = 0; i < ACTION_TABLE_LEN; i++)
         {
-            ACTION_TABLE[i].action();
-            break;
+            if (ACTION_TABLE[i].key == sw)
+            {
+                ACTION_TABLE[i].action();
+                break;
+            }
         }
     }
 }
