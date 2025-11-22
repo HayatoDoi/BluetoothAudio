@@ -1,9 +1,12 @@
 #pragma once
 
 /* I2S出力関連 */
-#define BCK_PIN 14
-#define LRCK_PIN 27
-#define DIN_PIN 26
+#define I2S0_BCK_PIN 14
+#define I2S0_LRCK_PIN 26
+#define I2S0_DIN_PIN 27
+#define I2S1_BCK_PIN 16
+#define I2S1_LRCK_PIN 15
+#define I2S1_DIN_PIN 4
 
 /* Bluetoothの設定 */
 #define BLUETOOTH_DEFAULT_VOLUME 64 /* 初回起動時の音量 */
